@@ -60,6 +60,10 @@ def get_fscore(y_pred, y_true):
     r = get_recall(y_pred, y_true)
     return 2(p * r) / (p + r)
 
+def test_predictions(y_pred, y_true):
+    print ("Precision: %i\nRecall: %i\nf-score: %i\n" 
+        %(get_precision(y_pred, y_true), get_recall(y_pred, y_true), get_fscore(y_pred, y_true)))
+
 #### 2. Complex Word Identification ####
 
 ## Loads in the words and labels of one of the datasets
@@ -81,7 +85,14 @@ def load_file(data_file):
 ## Labels every word complex
 def all_complex(data_file):
     ## YOUR CODE HERE...
-    performance = [precision, recall, fscore]
+    words, labels = load_file(data_file)
+    y_pred = {}
+    y_true = {}
+    for i in range(len(words)):
+        y_pred[words[i]] = 1
+        y_true[words[i]] = labels[i]
+    performance = [get_precision(y_pred, y_true), 
+        get_recall(y_pred, y_true), get_fscore(y_pred, y_true)]
     return performance
 
 
@@ -91,6 +102,8 @@ def all_complex(data_file):
 ## classify the training and development set
 def word_length_threshold(training_file, development_file):
     ## YOUR CODE HERE
+    threshold = 9
+
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
@@ -142,21 +155,21 @@ def logistic_regression(training_file, development_file, counts):
 def hello():
     print ("Hello World")
 
-def load_file(data_file):
-    print ("INSIDE METHOD?")
-    file = open(data_file)
-    print (file)
-    results = {}
-    skip = True
-    for line in file:
-        if skip:
-            skip = False 
-            continue
-        words = line.split("\t")
-        # print (words[0] + " %s" %words[1])
-        results[words[0]] = words[1]
-    file.close()
-    return results
+# def load_file(data_file):
+#     print ("INSIDE METHOD?")
+#     file = open(data_file)
+#     print (file)
+#     results = {}
+#     skip = True
+#     for line in file:
+#         if skip:
+#             skip = False 
+#             continue
+#         words = line.split("\t")
+#         # print (words[0] + " %s" %words[1])
+#         results[words[0]] = words[1]
+#     file.close()
+#     return results
 
 if __name__ == "__main__":
     training_file = "data/complex_words_training.txt"
