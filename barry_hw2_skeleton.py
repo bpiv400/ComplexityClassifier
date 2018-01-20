@@ -9,10 +9,12 @@
 ## functions you need to write.
 #############################################################
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 import gzip
 import matplotlib 
 import numpy as np
+import re
+
 plt = matplotlib.pyplot
 #pylab.savefig
 def sum_el(same, val, pred_list, true_list):
@@ -85,7 +87,7 @@ def load_file(data_file):
 
 ## Labels every word complex
 def all_complex(data_file):
-    training_dic = load_file(data_file)
+    training_dic = dict(zip(load_file(data_file)))
     pred_list = list()
     training_list = list()
     for key in training_dic.keys():
@@ -108,7 +110,7 @@ def word_length_threshold(training_file, development_file):
     # and complex if len(word) > i
     # Additionally creates & saves a precision-recall curve
     # Plots precision on the y axis and recall on the x axis
-    training_dic = load_file(training_file)
+    training_dic = dict(zip(load_file(training_file)))
     training_precision = numpy.zeroes(1, 28)
     training_recall = numpy.zeroes(1, 28)
     training_fscore = numpy.zeroes(1, 28)
@@ -138,7 +140,7 @@ def word_length_threshold(training_file, development_file):
             best_fscore = tfscore
             best_precision = tprecision
             best_recall = trecall
-    dev_dic = load_file(development_file)
+    dev_dic = dict(zip(load_file(development_file)))
     dev_vec = list()
     pred_vec = list()
 
@@ -180,10 +182,64 @@ def load_ngram_counts(ngram_counts_file):
 # Finds the best frequency threshold by f-score, and uses this threshold to
 ## classify the training and development set
 def word_frequency_threshold(training_file, development_file, counts):
-    ## YOUR CODE HERE
-    training_performance = [tprecision, trecall, tfscore]
+    counts = Counter(counts)
+    tprecision, tfscore, trecall = 0
+    best_fscore, best_precision, best_recall = 0
+    i = 0
+    training_dic = dict(zip(load_file(training_file)))
+    max_count = max(counts.values())
+    max_thresh = max_count - (max_count % 1000)
+    min_thresh = 1000
+    step = 1000
+    thresh_vec = range(start=min_thresh, stop=max_thresh + step, step = 1000)
+    best_thresh = min_thresh
+    training_precision, training_recall, training_fscore = numpy.zeroes()
+    for thresh in thresh_vec:
+        pred_vec = list()
+        training_vec = list()
+        for word in training_dic.keys():
+            count = counts[word]
+            if count == 0:
+                word = re.sub(pattern="-", repl="", string = word)
+                count = counts[word]
+            if count < threshold:
+                pred_vec.append(1)
+            else:
+                pred_vec.append(0)
+            training_vec.append(training_dic[word])
+        tfscore = get_fscore(pred_vec, training_vec)
+        tprecision = get_precision(pred_vec, training_vec)
+        trecall = get_recall(pred_vec, training_vec)
+        training_precision[i] = tprecision
+        training_recall[i] = trecall
+        training_fscore[i] = tfscore
+        if tfscore > best_fscore:
+            best_thresh = thresh
+            best_fscore = tfscore
+            best_precision = tprecision
+            best_recall = trecall
+        i += 1
+
+    dev_dic = dict(zip(load_file(development_file)))
+    dev_vec = list()
+    pred_vec = list()
+    for key in dev_dic.keys():
+        dev_vec.append(dev_dic[key])
+        count = counts[word]
+        if count == 0:
+            word = re.sub(pattern="-", repl="", string = word)
+            count = counts[word]
+        if count < threshold:
+            pred_vec.append(1)
+        else:
+            pred_vec.append(0)
+    dprecision = get_precision(pred_vec, dev_vec)
+    drecall = get_recall(pred_vec, dev_vec)
+    dfscore = get_fscore(pred_vec, dev_vec)
+    threshold_performance = [trainining_precision, training_recall, training_fscore]
+    training_performance = [best_precision, best_recall, best_fscore]
     development_performance = [dprecision, drecall, dfscore]
-    return training_performance, development_performance
+    return training_performance, development_performance, threshold_performance
 
 ### 2.4: Naive Bayes
         
