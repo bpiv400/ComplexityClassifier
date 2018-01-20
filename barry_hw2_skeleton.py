@@ -241,11 +241,14 @@ def word_frequency_threshold(training_file, development_file, counts):
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance, threshold_performance
 
+#### Get baseline graphs ###
+
 ### 2.4: Naive Bayes
         
 ## Trains a Naive Bayes classifier using length and frequency features
 def naive_bayes(training_file, development_file, counts):
-    ## YOUR CODE HERE
+    training_dic = load_file(training_dic)
+    dev_dic = load_file(dev_dic)
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
