@@ -10,10 +10,17 @@
 #############################################################
 
 from collections import defaultdict, Counter
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LogisticRegression
+
 import gzip
 import matplotlib 
 import numpy as np
 import re
+
+clf = GaussianNB()
+clf2 = LogisticRegression()
+
 
 plt = matplotlib.pyplot
 #pylab.savefig
@@ -110,10 +117,11 @@ def word_length_threshold(training_file, development_file):
     # and complex if len(word) > i
     # Additionally creates & saves a precision-recall curve
     # Plots precision on the y axis and recall on the x axis
+    thresh_range = range(start=2, stop=30, step=1)
     training_dic = dict(zip(load_file(training_file)))
-    training_precision = numpy.zeroes(1, 28)
-    training_recall = numpy.zeroes(1, 28)
-    training_fscore = numpy.zeroes(1, 28)
+    training_precision = np.zeros(28)
+    training_recall = np.zeros(28)
+    training_fscore = np.zeros(28)
     development_dic = load_file(development_file)
     best_thresh = 1
     best_fscore, best_recall, best_precision = 0
@@ -193,7 +201,7 @@ def word_frequency_threshold(training_file, development_file, counts):
     step = 1000
     thresh_vec = range(start=min_thresh, stop=max_thresh + step, step = 1000)
     best_thresh = min_thresh
-    training_precision, training_recall, training_fscore = numpy.zeroes()
+    training_precision, training_recall, training_fscore = np.zeros(len(thresh_vec))
     for thresh in thresh_vec:
         pred_vec = list()
         training_vec = list()
@@ -243,12 +251,63 @@ def word_frequency_threshold(training_file, development_file, counts):
 
 #### Get baseline graphs ###
 
+def norm(vec):
+    mean = np.mean(vec)
+    sd = np.std(vec)
+    for i in vec:
+        vec[i] = (vec[i] - mean) / sd
+    return vec
+
 ### 2.4: Naive Bayes
         
 ## Trains a Naive Bayes classifier using length and frequency features
 def naive_bayes(training_file, development_file, counts):
-    training_dic = load_file(training_dic)
-    dev_dic = load_file(dev_dic)
+    training_dic = dict(zip(load_file(training_file)))
+    development_dic = dict(zip(load_file(development_file)))
+    features_matrix = np.zeros(len(training_dic), 2)
+    lab_vec = np.zeros(len(training_dic))
+    i = 0
+    for word in training_dic.keys():
+        features_matrix[i, 0] = len(word)
+        count = counts[word]
+        if count == 0:
+            word = re.sub(pattern="-", repl="", string = word)
+            count = counts[word]
+        features_matrix[i, 1] = count
+        lab_vec[i] = training_dic[word]
+        i += 1
+    features_matrix[ :, 0] = norm(features_matrix[ :, 0])
+    features_matrix[ :, 1] = norm(features_matrix[ :, 1])
+
+    dev_matrix = np.zeros(len(development_dic), 2)
+    dev_vec = np.zeros(len(development_dic))
+
+    i = 0
+    for word in development_dic.keys():
+        dev_matrix[i, 0] = len(word)
+        count = counts[word]
+        if count == 0:
+            word = re.sub(pattern="-", repl="", string = word)
+            count = counts[word]
+        dev_matrix[i, 1] = count
+        dev_vec[i] = development_dic[word]
+        i += 1
+    dev_matrix[ :, 0] = norm(dev_matrix[ :, 0])
+    dev_matrix[ :, 1] = norm(dev_matrix[ :, 1])
+
+    clf.fit(features_matrix, lab_vec)
+    
+    train_pred = clf.predict(features_matrix)
+    dev_pred = clf.predict(dev_matrix)
+
+    tprecision = get_precision(train_pred, lab_vec)
+    trecall = get_recall(train_pred, lab_vec)
+    tfscore = get_fscore(train_pred, lab_vec)
+
+    dprecision = get_precision(dev_pred, dev_vec)
+    dfscore = get_fscore(dev_pred, dev_vec)
+    drecall = get_recall(dev_pred, dev_vec)
+
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
@@ -257,7 +316,51 @@ def naive_bayes(training_file, development_file, counts):
 
 ## Trains a Naive Bayes classifier using length and frequency features
 def logistic_regression(training_file, development_file, counts):
-    ## YOUR CODE HERE    
+    training_dic = dict(zip(load_file(training_file)))
+    development_dic = dict(zip(load_file(development_file)))
+    features_matrix = np.zeros(len(training_dic), 2)
+    lab_vec = np.zeros(len(training_dic))
+    i = 0
+    for word in training_dic.keys():
+        features_matrix[i, 0] = len(word)
+        count = counts[word]
+        if count == 0:
+            word = re.sub(pattern="-", repl="", string = word)
+            count = counts[word]
+        features_matrix[i, 1] = count
+        lab_vec[i] = training_dic[word]
+        i += 1
+    features_matrix[ :, 0] = norm(features_matrix[ :, 0])
+    features_matrix[ :, 1] = norm(features_matrix[ :, 1])
+
+    dev_matrix = np.zeros(len(development_dic), 2)
+    dev_vec = np.zeros(len(development_dic))
+    i = 0
+    for word in development_dic.keys():
+        dev_matrix[i, 0] = len(word)
+        count = counts[word]
+        if count == 0:
+            word = re.sub(pattern="-", repl="", string = word)
+            count = counts[word]
+        dev_matrix[i, 1] = count
+        dev_vec[i] = development_dic[word]
+        i += 1
+    dev_matrix[ :, 0] = norm(dev_matrix[ :, 0])
+    dev_matrix[ :, 1] = norm(dev_matrix[ :, 1])
+
+    clf2.fit(features_matrix, lab_vec)
+    
+    train_pred = clf2.predict(features_matrix)
+    dev_pred = clf2.predict(dev_matrix)
+
+    tprecision = get_precision(train_pred, lab_vec)
+    trecall = get_recall(train_pred, lab_vec)
+    tfscore = get_fscore(train_pred, lab_vec)
+
+    dprecision = get_precision(dev_pred, dev_vec)
+    dfscore = get_fscore(dev_pred, dev_vec)
+    drecall = get_recall(dev_pred, dev_vec)
+
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
