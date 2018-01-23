@@ -83,7 +83,7 @@ def test_predictions(y_pred, y_true):
     print ("Precision: %0.3f\nRecall: %0.3f\nf-score: %0.3f" 
         %(get_precision(y_pred, y_true), get_recall(y_pred, y_true), get_fscore(y_pred, y_true)))
 
-# test_predictions(y_prediction, y_truth)
+test_predictions(y_prediction, y_truth)
 #### 2. Complex Word Identification ####
 
 ## Loads in the words and labels of one of the datasets
@@ -116,7 +116,7 @@ def all_complex(data_file):
     # print(performance)
     return performance
 
-# all_complex("complex_words_training.txt")
+# print(all_complex("complex_words_training.txt"))
 
 ### 2.2: Word length thresholding
 
@@ -167,7 +167,13 @@ def word_length_threshold(training_file, development_file):
             best_p = tps 
             best_r = trs
 
-    dev_pred, dev_true = word_length_dicts(d_words, d_labels, threshold)
+    print("Length Training Performance Stats ")
+    print("Best Recall: " + str(best_r))
+    print("Best F-Score: " + str(best_f))
+    print("Best Precision: " + str(best_p))
+    print("Best Length Threshold: " + str(best_thresh))
+
+    dev_pred, dev_true = word_length_dicts(d_words, d_labels, best_thresh)
     dps = get_precision(dev_pred, dev_true)
     dfs = get_fscore(dev_pred, dev_true)
     drs = get_recall(dev_pred, dev_true)
@@ -181,11 +187,11 @@ def word_length_threshold(training_file, development_file):
 
     training_performance = [best_p, best_r, best_f]
     development_performance = [dps, drs, dfs]
-    print (training_performance)
-    print (development_performance)
+    # print (training_performance)
+    # print (development_performance)
     return training_performance, development_performance
 
-word_length_threshold("complex_words_training.txt", "complex_words_development.txt")
+print (word_length_threshold("complex_words_training.txt", "complex_words_development.txt"))
 ### 2.3: Word frequency thresholding
 
 ## Loads Google NGram counts
