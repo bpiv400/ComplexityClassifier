@@ -11,12 +11,18 @@
 
 from collections import defaultdict
 import gzip
+import numpy as np
+import matplotlib.pyplot as plt
+import sklearn
+
+
 
 #### 1. Evaluation Metrics ####
 
 ## Input: y_pred, a list of length n with the predicted labels,
 ## y_true, a list of length n with the true labels
-
+y_prediction = [1, 1, 1, 1, 1, 0, 0, 0, 0]
+y_truth = [1, 1, 0, 0, 0, 1, 1, 0, 0]
 
 def get_true_comp(y_pred, y_true):
     val = 0
@@ -45,25 +51,39 @@ def get_precision(y_pred, y_true):
     tc = get_true_comp(y_pred, y_true)
     fc = get_false_comp(y_pred, y_true)
 
-    return tc / (tc + fc)
+    if tc + fc != 0:
+        return tc / (tc + fc)
+    else:
+        return 1
     
 ## Calculates the recall of the predicted labels
 def get_recall(y_pred, y_true):
     tc = get_true_comp(y_pred, y_true)
     fs = get_false_simp(y_pred, y_true)
 
-    return tc / (tc + fs)
+    if tc + fs != 0:
+        return tc / (tc + fs)
+    else:
+        return 1
 
 ## Calculates the f-score of the predicted labels
 def get_fscore(y_pred, y_true):
     p = get_precision(y_pred, y_true)
     r = get_recall(y_pred, y_true)
-    return 2(p * r) / (p + r)
+
+    if p + r != 0:
+        return 2*(p * r) / (p + r)
+    else:
+        return 
+
+def get_predictions(y_pred, y_true):
+    return get_precision(y_pred, y_true), get_recall(y_pred, y_true), get_fscore(y_pred, y_true)
 
 def test_predictions(y_pred, y_true):
-    print ("Precision: %i\nRecall: %i\nf-score: %i\n" 
+    print ("Precision: %0.3f\nRecall: %0.3f\nf-score: %0.3f" 
         %(get_precision(y_pred, y_true), get_recall(y_pred, y_true), get_fscore(y_pred, y_true)))
 
+# test_predictions(y_prediction, y_truth)
 #### 2. Complex Word Identification ####
 
 ## Loads in the words and labels of one of the datasets
@@ -86,28 +106,86 @@ def load_file(data_file):
 def all_complex(data_file):
     ## YOUR CODE HERE...
     words, labels = load_file(data_file)
-    y_pred = {}
-    y_true = {}
+    y_pred = []
+    y_true = []
     for i in range(len(words)):
-        y_pred[words[i]] = 1
-        y_true[words[i]] = labels[i]
+        y_pred.append(1)
+        y_true.append(labels[i])
     performance = [get_precision(y_pred, y_true), 
         get_recall(y_pred, y_true), get_fscore(y_pred, y_true)]
+    # print(performance)
     return performance
 
+# all_complex("complex_words_training.txt")
 
 ### 2.2: Word length thresholding
 
 ## Finds the best length threshold by f-score, and uses this threshold to
 ## classify the training and development set
-def word_length_threshold(training_file, development_file):
-    ## YOUR CODE HERE
-    threshold = 9
 
-    training_performance = [tprecision, trecall, tfscore]
-    development_performance = [dprecision, drecall, dfscore]
+def word_length_dicts(words, labels, threshold):
+    pred = []
+    true = []
+    for i in range(len(words)):
+        if (len(words[i]) >= threshold):
+            pred.append (1)
+        else:
+            pred.append(0)
+        true.append(labels[i])
+
+    return pred, true
+
+def word_length_threshold(training_file, development_file):
+    tp = np.zeros(28)
+    tr = np.zeros(28)
+    tf = np.zeros(28)
+    best_thresh = 1
+    precisions = []
+    recalls = []
+    best_f = 0 
+    best_r = 0 
+    best_p = 0
+    t_words, t_labels = load_file(training_file)
+    d_words, d_labels = load_file(development_file)
+
+    for threshold in range(2, 30):
+        i = threshold - 2
+        train_pred, train_true = word_length_dicts(t_words, t_labels, threshold)
+        tfs = get_fscore(train_pred, train_true)
+        tps = get_precision(train_pred, train_true)
+        trs = get_recall(train_pred, train_true)
+
+        precisions.append(tps)
+        recalls.append(trs)
+        tp[i] = tps 
+        tr[i] = trs
+        tf[i] = tfs 
+
+        if tfs > best_f:
+            best_thresh = threshold
+            best_f = tfs 
+            best_p = tps 
+            best_r = trs
+
+    dev_pred, dev_true = word_length_dicts(d_words, d_labels, threshold)
+    dps = get_precision(dev_pred, dev_true)
+    dfs = get_fscore(dev_pred, dev_true)
+    drs = get_recall(dev_pred, dev_true)
+
+    # plt = matplotlib.pyplot
+    plt.plot(recalls, precisions, '-')
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Precision-Recall Curve")
+    plt.show()
+
+    training_performance = [best_p, best_r, best_f]
+    development_performance = [dps, drs, dfs]
+    print (training_performance)
+    print (development_performance)
     return training_performance, development_performance
 
+word_length_threshold("complex_words_training.txt", "complex_words_development.txt")
 ### 2.3: Word frequency thresholding
 
 ## Loads Google NGram counts
@@ -120,10 +198,27 @@ def load_ngram_counts(ngram_counts_file):
                counts[token] = int(count) 
    return counts
 
+def word_frequ_dicts(words, labels, threshold):
+    pred = []
+    true = []
+    for i in range(len(words)):
+        if (len(words[i]) <= threshold):
+            pred.append(1)
+        else:
+            pred.append(0)
+        true[words[i]] = labels[i]
+
+    return pred, true
+
 # Finds the best frequency threshold by f-score, and uses this threshold to
 ## classify the training and development set
 def word_frequency_threshold(training_file, development_file, counts):
     ## YOUR CODE HERE
+    threshhold  = 5
+    t_words, t_labels = loadfile(training_file)
+    d_words, d_labels = loadfile(development_file)
+
+
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
@@ -151,9 +246,6 @@ def logistic_regression(training_file, development_file, counts):
 ## Trains a classifier of your choosing, predicts labels for the test dataset
 ## and writes the predicted labels to the text file 'test_labels.txt',
 ## with ONE LABEL PER LINE
-
-def hello():
-    print ("Hello World")
 
 # def load_file(data_file):
 #     print ("INSIDE METHOD?")
