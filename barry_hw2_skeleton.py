@@ -121,8 +121,8 @@ def word_length_threshold(training_file, development_file):
     training_fscore = np.zeros(len(thresh_range))
     development_dic = load_file(development_file)
     best_thresh = 1
-    best_fscore, best_recall, best_precision = 0
-    tprecision, trecall, tfscore = 0
+    best_fscore, best_recall, best_precision = 0, 0, 0
+    tprecision, trecall, tfscore = 0, 0, 0
     i = 0
     for thresh in thresh_range:
         training_vec = list()
@@ -155,7 +155,6 @@ def word_length_threshold(training_file, development_file):
     print("Best Recall: " + str(best_recall))
     print("Best F-Score: " + str(best_fscore))
     print("Best Precision: " + str(best_fscore))
-    print("Best Frequency threshold: " + str(best_thresh))
     print("Best Length Threshold: " + str(best_thresh))
 
     for key in dev_dic.keys():
@@ -166,13 +165,13 @@ def word_length_threshold(training_file, development_file):
         else: 
             pred_vec.append(1)
 
-    print("Frequency Threshold Development Performance")
+    print("Length Threshold Development Performance")
     test_predictions(pred_vec, dev_vec)
 
     dprecision = get_precision(pred_vec, dev_vec)
     drecall = get_recall(pred_vec, dev_vec)
     dfscore = get_fscore(pred_vec, dev_vec)
-    threshold_performance = [trainining_precision, training_recall, training_fscore]
+    threshold_performance = [training_precision, training_recall, training_fscore]
 
     training_performance = [best_precision, best_recall, best_fscore]
     development_performance = [dprecision, drecall, dfscore]
@@ -183,7 +182,7 @@ def word_length_threshold(training_file, development_file):
 ## Loads Google NGram counts
 def load_ngram_counts(ngram_counts_file):
     counts = defaultdict(int)
-    with gzip.open(ngram_counts_file, 'rt') as f:
+    with gzip.open(ngram_counts_file, 'rt', encoding='utf-8') as f:
         for line in f:
             token, count = line.strip().split('\t')
             if token[0].islower():
@@ -194,28 +193,30 @@ def load_ngram_counts(ngram_counts_file):
 ## classify the training and development set
 def word_frequency_threshold(training_file, development_file, counts):
     counts = Counter(counts)
-    tprecision, tfscore, trecall = 0
-    best_fscore, best_precision, best_recall = 0
+    tprecision, tfscore, trecall = 0, 0, 0
+    best_fscore, best_precision, best_recall = 0, 0, 0
     i = 0
     words, labels = load_file(training_file)
     training_dic = dict(zip(words, labels))
     max_count = max(counts.values())
     ## very uncertain about thresholds
-    max_thresh = 50000000
+    max_thresh = 60000000
     min_thresh = 1000
     step = 1000
     thresh_vec = range(min_thresh, max_thresh + step, 1000)
     best_thresh = min_thresh
-    training_precision, training_recall, training_fscore = np.zeros(len(thresh_vec))
+    training_precision = np.zeros(len(thresh_vec))
+    training_recall = np.zeros(len(thresh_vec))
+    training_fscore = np.zeros(len(thresh_vec))
     for thresh in thresh_vec:
         pred_vec = list()
         training_vec = list()
         for word in training_dic.keys():
             count = counts[word]
             if count == 0:
-                word = re.sub(pattern="-", repl="", string = word)
-                count = counts[word]
-            if count < threshold:
+                fixed_word = re.sub(pattern="-", repl="", string = word)
+                count = counts[fixed_word]
+            if count < thresh:
                 pred_vec.append(1)
             else:
                 pred_vec.append(0)
@@ -247,7 +248,7 @@ def word_frequency_threshold(training_file, development_file, counts):
         if count == 0:
             word = re.sub(pattern="-", repl="", string = word)
             count = counts[word]
-        if count < threshold:
+        if count < best_thresh:
             pred_vec.append(1)
         else:
             pred_vec.append(0)
