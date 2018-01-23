@@ -1,3 +1,5 @@
+#!/bin/env python
+
 #############################################################
 ## ASSIGNMENT 2 CODE SKELETON
 ## RELEASED: 1/17/2018
@@ -14,15 +16,13 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 
 import gzip
-import matplotlib 
+import matplotlib.pyplot as plt
 import numpy as np
 import re
 
 clf = GaussianNB()
 clf2 = LogisticRegression()
 
-
-plt = matplotlib.pyplot
 #pylab.savefig
 def sum_el(same, val, pred_list, true_list):
     sum = 0
@@ -65,16 +65,10 @@ def get_fscore(y_pred, y_true):
     fscore = 2 * recall * precision/(recall + precision)
     return fscore
 
-#### 2. Complex Word Identification ####
-y_prediction = [1, 1, 1, 1, 1, 0, 0, 0, 0]
-y_truth = [1, 1, 0, 0, 0, 1, 1, 0, 0]
-
 def test_predictions(y_pred, y_true):
     print("Recall: " + str(get_recall(y_pred, y_true)))
     print("Precision: " + str(get_precision(y_pred, y_true)))
     print("Fscore: " + str(get_fscore(y_pred, y_true)))
-
-test_predictions(y_prediction, y_truth)
 
 ## Loads in the words and labels of one of the datasets
 def load_file(data_file):
@@ -94,7 +88,8 @@ def load_file(data_file):
 
 ## Labels every word complex
 def all_complex(data_file):
-    training_dic = dict(zip(load_file(data_file)))
+    words, labels = load_file(data_file)
+    training_dic = dict(zip(words, labels))
     pred_list = list()
     training_list = list()
     for key in training_dic.keys():
@@ -103,10 +98,11 @@ def all_complex(data_file):
     precision = get_precision(pred_list, training_list)
     recall = get_recall(pred_list, training_list)
     fscore = get_fscore(pred_list, training_list)
+    print("All complex performance statistics")
+    test_predictions(pred_list, training_list)
     performance = [precision, recall, fscore]
     return performance
 
-print(str(range(2,20)))
 ### 2.2: Word length thresholding
 
 ## Finds the best length threshold by f-score, and uses this threshold to
@@ -117,8 +113,9 @@ def word_length_threshold(training_file, development_file):
     # and complex if len(word) > i
     # Additionally creates & saves a precision-recall curve
     # Plots precision on the y axis and recall on the x axis
-    thresh_range = range(start=2, stop=30, step=1)
-    training_dic = dict(zip(load_file(training_file)))
+    thresh_range = range(2, 30, 1)
+    words, labels = load_file(training_file)
+    training_dic = dict(zip(words, labels))
     training_precision = np.zeros(len(thresh_range))
     training_recall = np.zeros(len(thresh_range))
     training_fscore = np.zeros(len(thresh_range))
@@ -150,9 +147,15 @@ def word_length_threshold(training_file, development_file):
             best_recall = trecall
         i += 1
 
-    dev_dic = dict(zip(load_file(development_file)))
+    words, labels = load_file(development_file)
+    dev_dic = dict(zip(words, labels))
     dev_vec = list()
     pred_vec = list()
+    print("Length Training Performance Stats ")
+    print("Best Recall: " + str(best_recall))
+    print("Best F-Score: " + str(best_fscore))
+    print("Best Precision: " + str(best_fscore))
+    print("Best Frequency threshold: " + str(best_thresh))
     print("Best Length Threshold: " + str(best_thresh))
 
     for key in dev_dic.keys():
@@ -162,6 +165,10 @@ def word_length_threshold(training_file, development_file):
             pred_vec.append(0)
         else: 
             pred_vec.append(1)
+
+    print("Frequency Threshold Development Performance")
+    test_predictions(pred_vec, dev_vec)
+
     dprecision = get_precision(pred_vec, dev_vec)
     drecall = get_recall(pred_vec, dev_vec)
     dfscore = get_fscore(pred_vec, dev_vec)
@@ -190,13 +197,14 @@ def word_frequency_threshold(training_file, development_file, counts):
     tprecision, tfscore, trecall = 0
     best_fscore, best_precision, best_recall = 0
     i = 0
-    training_dic = dict(zip(load_file(training_file)))
+    words, labels = load_file(training_file)
+    training_dic = dict(zip(words, labels))
     max_count = max(counts.values())
     ## very uncertain about thresholds
     max_thresh = 50000000
     min_thresh = 1000
     step = 1000
-    thresh_vec = range(start=min_thresh, stop=max_thresh + step, step = 1000)
+    thresh_vec = range(min_thresh, max_thresh + step, 1000)
     best_thresh = min_thresh
     training_precision, training_recall, training_fscore = np.zeros(len(thresh_vec))
     for thresh in thresh_vec:
@@ -224,9 +232,13 @@ def word_frequency_threshold(training_file, development_file, counts):
             best_precision = tprecision
             best_recall = trecall
         i += 1
-
+    print("Frequency Training Performance Stats ")
+    print("Best Recall: " + str(best_recall))
+    print("Best F-Score: " + str(best_fscore))
+    print("Best Precision: " + str(best_fscore))
     print("Best Frequency threshold: " + str(best_thresh))
-    dev_dic = dict(zip(load_file(development_file)))
+    words, labels = load_file(development_file)
+    dev_dic = dict(zip(words, labels))
     dev_vec = list()
     pred_vec = list()
     for key in dev_dic.keys():
@@ -242,6 +254,10 @@ def word_frequency_threshold(training_file, development_file, counts):
     dprecision = get_precision(pred_vec, dev_vec)
     drecall = get_recall(pred_vec, dev_vec)
     dfscore = get_fscore(pred_vec, dev_vec)
+
+    print("Frequency Threshold Development Performance")
+    test_predictions(pred_vec, dev_vec)
+
     threshold_performance = [trainining_precision, training_recall, training_fscore]
     training_performance = [best_precision, best_recall, best_fscore]
     development_performance = [dprecision, drecall, dfscore]
@@ -472,12 +488,17 @@ def logistic_regression(training_file, development_file, counts):
 ## with ONE LABEL PER LINE
 
 
-## if __name__ == "__main__":
- #   training_file = "data/complex_words_training.txt"
- #   development_file = "data/complex_words_development.txt"
- #   test_file = "data/complex_words_test_unlabeled.txt"
-#
- #   train_data = load_file(training_file)
- #   
- #   ngram_counts_file = "ngram_counts.txt.gz"
- #   counts = load_ngram_counts(ngram_counts_file)
+if __name__ == "__main__":
+    training_file = "data/complex_words_training.txt"
+    development_file = "data/complex_words_development.txt"
+    test_file = "data/complex_words_test_unlabeled.txt"
+
+    complex_performance = all_complex(training_file)
+    length_performance = word_length_threshold(training_file, development_file)
+
+    ngram_counts_file = "ngram_counts.txt.gz"
+    counts = load_ngram_counts(ngram_counts_file)
+
+    freq_performance = word_frequency_threshold(training_file, development_file, counts)
+
+
