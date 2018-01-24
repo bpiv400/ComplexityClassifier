@@ -14,8 +14,8 @@ import gzip
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn
-
-
+import re
+from sklearn.naive_bayes import GaussianNB
 
 #### 1. Evaluation Metrics ####
 
@@ -83,7 +83,7 @@ def test_predictions(y_pred, y_true):
     print ("Precision: %0.3f\nRecall: %0.3f\nf-score: %0.3f" 
         %(get_precision(y_pred, y_true), get_recall(y_pred, y_true), get_fscore(y_pred, y_true)))
 
-test_predictions(y_prediction, y_truth)
+# test_predictions(y_prediction, y_truth)
 #### 2. Complex Word Identification ####
 
 ## Loads in the words and labels of one of the datasets
@@ -183,7 +183,8 @@ def word_length_threshold(training_file, development_file):
     plt.xlabel("Recall")
     plt.ylabel("Precision")
     plt.title("Precision-Recall Curve")
-    plt.show()
+    plt.draw()
+    plt.savefig("Precision-Recall Length Curve")
 
     training_performance = [best_p, best_r, best_f]
     development_performance = [dps, drs, dfs]
@@ -191,7 +192,7 @@ def word_length_threshold(training_file, development_file):
     # print (development_performance)
     return training_performance, development_performance
 
-print (word_length_threshold("complex_words_training.txt", "complex_words_development.txt"))
+word_length_threshold("complex_words_training.txt", "complex_words_development.txt")
 ### 2.3: Word frequency thresholding
 
 ## Loads Google NGram counts
@@ -204,38 +205,143 @@ def load_ngram_counts(ngram_counts_file):
                counts[token] = int(count) 
    return counts
 
-def word_frequ_dicts(words, labels, threshold):
+def word_frequ_dicts(words, labels, counts,threshold):
     pred = []
     true = []
     for i in range(len(words)):
-        if (len(words[i]) <= threshold):
+        count = counts[words[i]]
+        if count == 0:
+            word = re.sub(pattern="-", repl="", string = words[i])
+            count = counts[word]
+        if (count <= threshold):
             pred.append(1)
         else:
             pred.append(0)
-        true[words[i]] = labels[i]
+        true.append(labels[i])
 
     return pred, true
 
 # Finds the best frequency threshold by f-score, and uses this threshold to
 ## classify the training and development set
 def word_frequency_threshold(training_file, development_file, counts):
-    ## YOUR CODE HERE
-    threshhold  = 5
-    t_words, t_labels = loadfile(training_file)
-    d_words, d_labels = loadfile(development_file)
+    # tp = np.zeros(28)
+    # tr = np.zeros(28)
+    # tf = np.zeros(28)
+    best_thresh = 1
+    precisions = []
+    recalls = []
+    best_f = 0 
+    best_r = 0 
+    best_p = 0
+    t_words, t_labels = load_file(training_file)
+    d_words, d_labels = load_file(development_file)
 
+    i = 0
+    for threshold in range(0, 60000000, 100000):
+        i = threshold
+        train_pred, train_true = word_frequ_dicts(t_words, t_labels, counts, threshold)
+        tfs = get_fscore(train_pred, train_true)
+        tps = get_precision(train_pred, train_true)
+        trs = get_recall(train_pred, train_true)
 
-    training_performance = [tprecision, trecall, tfscore]
-    development_performance = [dprecision, drecall, dfscore]
-    return training_performance, development_performance
+        precisions.append(tps)
+        recalls.append(trs)
+        # tp[i] = tps 
+        # tr[i] = trs
+        # tf[i] = tfs 
+        if tfs > best_f:
+            best_thresh = threshold
+            best_f = tfs 
+            best_p = tps 
+            best_r = trs
+        i += 1
+
+    print("Frequency Training Performance Stats ")
+    print("Best Recall: " + str(best_r))
+    print("Best F-Score: " + str(best_f))
+    print("Best Precision: " + str(best_p))
+    print("Best Frequency Threshold: " + str(best_thresh))
+
+    dev_pred, dev_true = word_frequ_dicts(d_words, d_labels, counts, best_thresh)
+    dps = get_precision(dev_pred, dev_true)
+    dfs = get_fscore(dev_pred, dev_true)
+    drs = get_recall(dev_pred, dev_true)
+
+    # plt = matplotlib.pyplot
+    plt.plot(recalls, precisions, '-')
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Precision-Recall Curve for Frequency")
+    plt.show()
+
+    # TODO IMPLEMENT ERROR ERROR ERROR
+    # training_performance = [tprecision, trecall, tfscore]
+    # training_performance = [get_per]
+    # development_performance = [dprecision, drecall, dfscore]
+    # return training_performance, development_performance
 
 ### 2.4: Naive Bayes
-        
+def norm(vec):
+    mean = np.mean(vec)
+    sd = np.std(vec)
+    for i in range(len(vec)):
+        vec[i] = (vec[i] - mean) / sd
+    return vec
+
 ## Trains a Naive Bayes classifier using length and frequency features
 def naive_bayes(training_file, development_file, counts):
     ## YOUR CODE HERE
-    training_performance = [tprecision, trecall, tfscore]
-    development_performance = [dprecision, drecall, dfscore]
+    t_words, t_labels = load_file(training_file)
+    feat_mat = np.zeros((len(t_words), 2))
+    labels_vec = np.zeros(len(t_words))
+
+    for i in range(0,len(t_words)):
+        feat_mat[i, 0] = len(t_words[i])
+        count = counts[t_words[i]]
+        if count == 0:
+            fixed = re.sub(pattern = '-', repl="", string = t_words[i])
+            count = counts[fixed]
+        feat_mat[i, 1] = count
+        labels_vec[i] = t_labels[i]
+
+    feat_mat[ :, 0] = norm(feat_mat[ :, 0])
+    feat_mat[ :, 1] = norm(feat_mat[ :, 1])
+
+    clf = GaussianNB()
+    clf.fit(feat_mat, labels_vec)
+
+    d_words, d_labels = load_file(development_file)
+    dev_mat = np.zeros((len(d_words), 2))
+    # dev_vec = np.zeros(len(d_words))
+
+    for i in range(0, len(d_words)):
+        dev_mat[i, 0] = len(d_words[i])
+        count = counts[d_words[i]]
+        if count == 0:
+            re.sub(pattern="-", repl="", string = d_words[i])
+            count = counts[fixed]
+        dev_mat[i, 1] = count
+        # dev_fec[i] = labels[i]
+
+    dev_mat[ :, 0] = norm(dev_mat[ :, 0])
+    dev_mat[ :, 1] = norm(dev_mat[ :, 1])
+
+    train_pred = clf.predict(feat_mat)
+    dev_pred = clf.predict(dev_mat)
+
+    print("Naive Bayes Performance Test Statistics")
+    test_predictions(train_pred, t_labels)
+    print()
+
+    print("Naive Bayes Performance Dev Statistics")
+    test_predictions(dev_pred, d_labels)
+    print()
+
+   
+    # training_performance = [tprecision, trecall, tfscore]
+    training_performance = [get_predictions(train_pred, t_labels)]
+    # development_performance = [dprecision, drecall, dfscore]
+    development_performance = [get_predictions(dev_pred, d_labels)]
     return training_performance, development_performance
 
 ### 2.5: Logistic Regression
@@ -247,6 +353,12 @@ def logistic_regression(training_file, development_file, counts):
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
 
+def show_both():
+    plt.plot(recalls, precisions, '-')
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Precision-Recall Curve for Frequency")
+    plt.show()
 ### 2.7: Build your own classifier
 
 ## Trains a classifier of your choosing, predicts labels for the test dataset
@@ -276,8 +388,10 @@ if __name__ == "__main__":
 
     train_data = load_file(training_file)
     
-    # ngram_counts_file = "ngram_counts.txt.gz"
-    # counts = load_ngram_counts(ngram_counts_file)
-
+    ngram_counts_file = "ngram_counts.txt.gz"
+    counts = load_ngram_counts(ngram_counts_file)
+    print ()
+    # word_frequency_threshold("complex_words_training.txt", "complex_words_development.txt", counts)
+    naive_bayes("complex_words_training.txt", "complex_words_development.txt", counts)
 
 
