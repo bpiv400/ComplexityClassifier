@@ -538,8 +538,17 @@ def logistic_regression(training_file, development_file, counts):
 ## Trains a classifier of your choosing, predicts labels for the test dataset
 ## and writes the predicted labels to the text file 'test_labels.txt',
 ## with ONE LABEL PER LINE
-
-
+def sentence_length(file):
+    sen_len = dict()
+    with open(file, 'rt', encoding="utf8") as f:
+        i = 0
+        for line in f:
+            if i > 0:
+                line_split = line[:-1].split("\t")
+                word = line_split[0]
+                sen_len[word] = len(line_split[3].split(r"\s"))
+            i += 1
+    return sen_len
 if __name__ == "__main__":
     training_file = "data/complex_words_training.txt"
     development_file = "data/complex_words_development.txt"
