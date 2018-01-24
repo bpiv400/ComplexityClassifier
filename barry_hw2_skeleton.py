@@ -15,6 +15,7 @@ from collections import defaultdict, Counter
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from nlkt.corpus import wordnet as wn
+import syllables
 import gzip
 import matplotlib.pyplot as plt
 import numpy as np

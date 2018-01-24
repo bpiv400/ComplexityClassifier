@@ -398,16 +398,60 @@ def syllable_length(f):
             word = line_split[0]
             syl_len[word] = syllables.count_syllables(word)
 
+def wordnet_sens(word):
+    num_sens = len(wn.synsets(word))
+    return num_sens
 
-
-def classifier(file_name):
+def classifier(training_file, development_file, counts):
     file = open(file_name, 'rt', encoding"utf8")
-
-
+    # return dictionaries
     sen_len = sentence_length(file)
-    syl_len = 
+    syl_len = syllable_lenth(file)
 
     file.close()
+    #put number of features here
+    num_features = 4
+
+    words, labels = load_file(training_file)
+    training_dic = dict(zip(words, labels))
+
+    words, labels = load_file(development_file)
+    development_dic = dict(zip(words, labels))
+
+    features_matrix = np.zeros((len(training_dic), num_features))
+    lab_vec = np.zeros(len(training_dic))
+    i = 0
+    for word in training_dic.keys():
+        # 0 index feature is word length
+        features_matrix[i, 0] = len(word)
+        # 1 index feature is word count
+        count = counts[word]
+        if count == 0:
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
+        features_matrix[i, 1] = count
+        lab_vec[i] = training_dic[word]
+        i += 1
+        # 2 index feature is word syllables
+        features_matrix[i, 2] = syl_len[word]
+        # 3 index feature is wordnet synsets
+        features_matrix[i, 3] = wordnet_sens(word)
+        # 4 index feature is sentence length
+        features_matrix[i, 4] = sen_len[word]
+
+    mean_len = np.mean(features_matrix[ :, 0])
+    sd_len = np.std(features_matrix[:, 0])
+
+    mean_freq = np.mean(features_matrix[ :, 1])
+    sd_freq = np.std(features_matrix[:, 1])
+
+    features_matrix[ :, 0] = norm(features_matrix[ :, 0])
+    features_matrix[ :, 1] = norm(features_matrix[ :, 1])
+
+    dev_matrix = np.zeros((len(development_dic), 2))
+    dev_vec = np.zeros(len(development_dic))
+
+    i = 0
 
 
 if __name__ == "__main__":
