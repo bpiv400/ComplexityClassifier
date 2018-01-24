@@ -242,12 +242,12 @@ def word_frequency_threshold(training_file, development_file, counts):
     dev_dic = dict(zip(words, labels))
     dev_vec = list()
     pred_vec = list()
-    for key in dev_dic.keys():
-        dev_vec.append(dev_dic[key])
+    for word in dev_dic.keys():
+        dev_vec.append(dev_dic[word])
         count = counts[word]
         if count == 0:
-            word = re.sub(pattern="-", repl="", string = word)
-            count = counts[word]
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
         if count < best_thresh:
             pred_vec.append(1)
         else:
@@ -259,7 +259,7 @@ def word_frequency_threshold(training_file, development_file, counts):
     print("Frequency Threshold Development Performance")
     test_predictions(pred_vec, dev_vec)
 
-    threshold_performance = [trainining_precision, training_recall, training_fscore]
+    threshold_performance = [training_precision, training_recall, training_fscore]
     training_performance = [best_precision, best_recall, best_fscore]
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
@@ -267,13 +267,16 @@ def word_frequency_threshold(training_file, development_file, counts):
 #### Get baseline graphs ###
 def precision_recall_plots(training_file, counts):
     #Length Threshold
-    thresh_range = range(start=2, stop=30, step=1)
-    training_dic = dict(zip(load_file(training_file)))
+    thresh_range = range(2, 30, 1)
+    words, labels = load_file(training_file)
+    training_dic = dict(zip(words, labels))
     training_precision = np.zeros(len(thresh_range))
     training_recall = np.zeros(len(thresh_range))
     training_fscore = np.zeros(len(thresh_range))
     best_thresh = 1
-    best_fscore, best_recall, best_precision = 0
+    best_fscore = 0 
+    best_recall = 0
+    best_precision = 0
     i = 0
     for thresh in thresh_range:
         training_vec = list()
@@ -303,32 +306,38 @@ def precision_recall_plots(training_file, counts):
     plt.ylabel("Precision")
     plt.title("Precision-Recall Curve for Length Baseline")
     file_name ="length_baseline.png"
-    plt.show()
+    plt.draw()
     plt.savefig(file_name)
     plt.clf()
 
     # Word frequency baseline plots 
     counts = Counter(counts)
-    tprecision, tfscore, trecall = 0
-    best_fscore, best_precision, best_recall = 0
+    tprecision = 0
+    tfscore = 0
+    trecall = 0
+    best_fscore = 0
+    best_precision = 0
+    best_recall = 0
     i = 0
     max_count = max(counts.values())
     ## very uncertain about thresholds
     max_thresh = 50000000
     min_thresh = 1000
     step = 1000
-    thresh_vec = range(start=min_thresh, stop=max_thresh + step, step = 1000)
+    thresh_vec = range(min_thresh, max_thresh + step, step)
     best_thresh = min_thresh
-    freq_precision, freq_recall, freq_fscore = np.zeros(len(thresh_vec))
+    freq_precision = np.zeros(len(thresh_vec)) 
+    freq_recall = np.zeros(len(thresh_vec)) 
+    freq_fscore = np.zeros(len(thresh_vec))
     for thresh in thresh_vec:
         pred_vec = list()
         training_vec = list()
         for word in training_dic.keys():
             count = counts[word]
             if count == 0:
-                word = re.sub(pattern="-", repl="", string = word)
-                count = counts[word]
-            if count < threshold:
+                fixed_word = re.sub(pattern="-", repl="", string = word)
+                count = counts[fixed_word]
+            if count < thresh:
                 pred_vec.append(1)
             else:
                 pred_vec.append(0)
@@ -350,28 +359,26 @@ def precision_recall_plots(training_file, counts):
     plt.ylabel("Precision")
     plt.title("Precision-Recall Curve for Frequency Baseline")
     file_name ="freq_baseline.png"
-    plt.show()
+    plt.draw()
     plt.savefig(file_name)
     plt.clf()
 
     #Combined plot
-    freq_line = plt.plot(freq_recall, freq_precision, "r-")
-    len_line = plt.plot(training_recall, training_precision, "b-")
-    freq_line.set_label("Word Frequency P-R Curve")
-    len_line.set_label("Word Length P-R Curve")
+    plt.plot(freq_recall, freq_precision, "r-", label="Frequency Baseline")
+    plt.plot(training_recall, training_precision, "b-", label="Length Baseline")
     plt.legend()
     plt.xlabel("Recall")
     plt.ylabel("Precision")
     plt.title("Precision-Recall Curve for Frequency and Length Baselines")
     file_name ="comp_baselines.png"
-    plt.show()
+    plt.draw()
     plt.savefig(file_name)
     
 
 def norm(vec):
     mean = np.mean(vec)
     sd = np.std(vec)
-    for i in vec:
+    for i in range(len(vec)):
         vec[i] = (vec[i] - mean) / sd
     return vec
 
@@ -379,24 +386,26 @@ def norm(vec):
         
 ## Trains a Naive Bayes classifier using length and frequency features
 def naive_bayes(training_file, development_file, counts):
-    training_dic = dict(zip(load_file(training_file)))
-    development_dic = dict(zip(load_file(development_file)))
-    features_matrix = np.zeros(len(training_dic), 2)
+    words, labels = load_file(training_file)
+    training_dic = dict(zip(words, labels))
+    words, labels = load_file(development_file)
+    development_dic = dict(zip(words, labels))
+    features_matrix = np.zeros((len(training_dic), 2))
     lab_vec = np.zeros(len(training_dic))
     i = 0
     for word in training_dic.keys():
         features_matrix[i, 0] = len(word)
         count = counts[word]
         if count == 0:
-            word = re.sub(pattern="-", repl="", string = word)
-            count = counts[word]
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
         features_matrix[i, 1] = count
         lab_vec[i] = training_dic[word]
         i += 1
     features_matrix[ :, 0] = norm(features_matrix[ :, 0])
     features_matrix[ :, 1] = norm(features_matrix[ :, 1])
 
-    dev_matrix = np.zeros(len(development_dic), 2)
+    dev_matrix = np.zeros((len(development_dic), 2))
     dev_vec = np.zeros(len(development_dic))
 
     i = 0
@@ -404,8 +413,8 @@ def naive_bayes(training_file, development_file, counts):
         dev_matrix[i, 0] = len(word)
         count = counts[word]
         if count == 0:
-            word = re.sub(pattern="-", repl="", string = word)
-            count = counts[word]
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
         dev_matrix[i, 1] = count
         dev_vec[i] = development_dic[word]
         i += 1
@@ -425,6 +434,9 @@ def naive_bayes(training_file, development_file, counts):
     dfscore = get_fscore(dev_pred, dev_vec)
     drecall = get_recall(dev_pred, dev_vec)
 
+    print("Naive Bayes Performance Statistics")
+    test_predictions(dev_pred, dev_vec)
+
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
     return training_performance, development_performance
@@ -433,32 +445,34 @@ def naive_bayes(training_file, development_file, counts):
 
 ## Trains a Naive Bayes classifier using length and frequency features
 def logistic_regression(training_file, development_file, counts):
-    training_dic = dict(zip(load_file(training_file)))
-    development_dic = dict(zip(load_file(development_file)))
-    features_matrix = np.zeros(len(training_dic), 2)
+    words, labels = load_file(training_file)
+    training_dic = dict(zip(words, labels))
+    words, labels = load_file(development_file)
+    development_dic = dict(zip(words, labels))
+    features_matrix = np.zeros((len(training_dic), 2))
     lab_vec = np.zeros(len(training_dic))
     i = 0
     for word in training_dic.keys():
         features_matrix[i, 0] = len(word)
         count = counts[word]
         if count == 0:
-            word = re.sub(pattern="-", repl="", string = word)
-            count = counts[word]
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
         features_matrix[i, 1] = count
         lab_vec[i] = training_dic[word]
         i += 1
     features_matrix[ :, 0] = norm(features_matrix[ :, 0])
     features_matrix[ :, 1] = norm(features_matrix[ :, 1])
 
-    dev_matrix = np.zeros(len(development_dic), 2)
+    dev_matrix = np.zeros((len(development_dic), 2))
     dev_vec = np.zeros(len(development_dic))
     i = 0
     for word in development_dic.keys():
         dev_matrix[i, 0] = len(word)
         count = counts[word]
         if count == 0:
-            word = re.sub(pattern="-", repl="", string = word)
-            count = counts[word]
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
         dev_matrix[i, 1] = count
         dev_vec[i] = development_dic[word]
         i += 1
@@ -477,6 +491,8 @@ def logistic_regression(training_file, development_file, counts):
     dprecision = get_precision(dev_pred, dev_vec)
     dfscore = get_fscore(dev_pred, dev_vec)
     drecall = get_recall(dev_pred, dev_vec)
+    print("Logistic Regression Performance Statistics")
+    test_predictions(dev_pred, dev_vec)
 
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
@@ -500,6 +516,10 @@ if __name__ == "__main__":
     ngram_counts_file = "ngram_counts.txt.gz"
     counts = load_ngram_counts(ngram_counts_file)
 
-    freq_performance = word_frequency_threshold(training_file, development_file, counts)
+    naive_bayes_performance = naive_bayes(training_file, development_file, counts)
+    logistic_regression_performance = logistic_regression(training_file, development_file, counts)
 
+    freq_performance = word_frequency_threshold(training_file, development_file, counts)
+    print("Starting Plots")
+    precision_recall_plots(training_file, counts)
 
