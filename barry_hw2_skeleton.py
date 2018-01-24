@@ -14,7 +14,7 @@
 from collections import defaultdict, Counter
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
-
+from nlkt.corpus import wordnet as wn
 import gzip
 import matplotlib.pyplot as plt
 import numpy as np
@@ -549,6 +549,11 @@ def sentence_length(file):
                 sen_len[word] = len(line_split[3].split(r"\s"))
             i += 1
     return sen_len
+
+def wordnet_sens(word):
+    num_sens = len(wn.synsets(word))
+    return num_sens
+
 if __name__ == "__main__":
     training_file = "data/complex_words_training.txt"
     development_file = "data/complex_words_development.txt"
