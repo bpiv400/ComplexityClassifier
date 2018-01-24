@@ -84,11 +84,24 @@ def load_file(data_file):
             i += 1
     return words, labels
 
+def load_file_lower(data_file):
+    words = []
+    labels = []   
+    with open(data_file, 'rt', encoding="utf8") as f:
+        i = 0
+        for line in f:
+            if i > 0:
+                line_split = line[:-1].split("\t")
+                words.append(line_split[0].lower())
+                labels.append(int(line_split[1]))
+            i += 1
+    return words, labels
+
 ### 2.1: A very simple baseline
 
 ## Labels every word complex
 def all_complex(data_file):
-    words, labels = load_file(data_file)
+    words, labels = load_file_lower(data_file)
     training_dic = dict(zip(words, labels))
     pred_list = list()
     training_list = list()
@@ -114,7 +127,7 @@ def word_length_threshold(training_file, development_file):
     # Additionally creates & saves a precision-recall curve
     # Plots precision on the y axis and recall on the x axis
     thresh_range = range(2, 30, 1)
-    words, labels = load_file(training_file)
+    words, labels = load_file_lower(training_file)
     training_dic = dict(zip(words, labels))
     training_precision = np.zeros(len(thresh_range))
     training_recall = np.zeros(len(thresh_range))
@@ -147,14 +160,14 @@ def word_length_threshold(training_file, development_file):
             best_recall = trecall
         i += 1
 
-    words, labels = load_file(development_file)
+    words, labels = load_file_lower(development_file)
     dev_dic = dict(zip(words, labels))
     dev_vec = list()
     pred_vec = list()
     print("Length Training Performance Stats ")
     print("Best Recall: " + str(best_recall))
     print("Best F-Score: " + str(best_fscore))
-    print("Best Precision: " + str(best_fscore))
+    print("Best Precision: " + str(best_precision))
     print("Best Length Threshold: " + str(best_thresh))
 
     for key in dev_dic.keys():
@@ -236,9 +249,9 @@ def word_frequency_threshold(training_file, development_file, counts):
     print("Frequency Training Performance Stats ")
     print("Best Recall: " + str(best_recall))
     print("Best F-Score: " + str(best_fscore))
-    print("Best Precision: " + str(best_fscore))
+    print("Best Precision: " + str(best_precision))
     print("Best Frequency threshold: " + str(best_thresh))
-    words, labels = load_file(development_file)
+    words, labels = load_file_lower(development_file)
     dev_dic = dict(zip(words, labels))
     dev_vec = list()
     pred_vec = list()
@@ -268,7 +281,7 @@ def word_frequency_threshold(training_file, development_file, counts):
 def precision_recall_plots(training_file, counts):
     #Length Threshold
     thresh_range = range(2, 30, 1)
-    words, labels = load_file(training_file)
+    words, labels = load_file_lower(training_file)
     training_dic = dict(zip(words, labels))
     training_precision = np.zeros(len(thresh_range))
     training_recall = np.zeros(len(thresh_range))
@@ -388,8 +401,10 @@ def norm(vec):
 def naive_bayes(training_file, development_file, counts):
     words, labels = load_file(training_file)
     training_dic = dict(zip(words, labels))
+
     words, labels = load_file(development_file)
     development_dic = dict(zip(words, labels))
+
     features_matrix = np.zeros((len(training_dic), 2))
     lab_vec = np.zeros(len(training_dic))
     i = 0
@@ -402,6 +417,13 @@ def naive_bayes(training_file, development_file, counts):
         features_matrix[i, 1] = count
         lab_vec[i] = training_dic[word]
         i += 1
+
+    mean_len = np.mean(features_matrix[ :, 0])
+    sd_len = np.std(features_matrix[:, 0])
+
+    mean_freq = np.mean(features_matrix[ :, 1])
+    sd_freq = np.std(features_matrix[:, 1])
+
     features_matrix[ :, 0] = norm(features_matrix[ :, 0])
     features_matrix[ :, 1] = norm(features_matrix[ :, 1])
 
@@ -418,8 +440,9 @@ def naive_bayes(training_file, development_file, counts):
         dev_matrix[i, 1] = count
         dev_vec[i] = development_dic[word]
         i += 1
-    dev_matrix[ :, 0] = norm(dev_matrix[ :, 0])
-    dev_matrix[ :, 1] = norm(dev_matrix[ :, 1])
+    
+    dev_matrix[ :, 0] = (dev_matrix[ :, 0] - mean_len)/sd_len
+    dev_matrix[ :, 1] = (dev_matrix[ :, 1] - mean_freq)/sd_freq
 
     clf.fit(features_matrix, lab_vec)
     
@@ -436,6 +459,9 @@ def naive_bayes(training_file, development_file, counts):
 
     print("Naive Bayes Performance Statistics")
     test_predictions(dev_pred, dev_vec)
+    print("Training F-Score: " + str(tfscore))
+    print("Training Precision: " + str(tprecision))
+    print("Training Recall: " + str(trecall))
 
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
@@ -461,6 +487,12 @@ def logistic_regression(training_file, development_file, counts):
         features_matrix[i, 1] = count
         lab_vec[i] = training_dic[word]
         i += 1
+    mean_len = np.mean(features_matrix[ :, 0])
+    sd_len = np.std(features_matrix[:, 0])
+
+    mean_freq = np.mean(features_matrix[ :, 1])
+    sd_freq = np.std(features_matrix[:, 1])
+    
     features_matrix[ :, 0] = norm(features_matrix[ :, 0])
     features_matrix[ :, 1] = norm(features_matrix[ :, 1])
 
@@ -476,8 +508,8 @@ def logistic_regression(training_file, development_file, counts):
         dev_matrix[i, 1] = count
         dev_vec[i] = development_dic[word]
         i += 1
-    dev_matrix[ :, 0] = norm(dev_matrix[ :, 0])
-    dev_matrix[ :, 1] = norm(dev_matrix[ :, 1])
+    dev_matrix[ :, 0] = (dev_matrix[ :, 0] - mean_len)/sd_len
+    dev_matrix[ :, 1] = (dev_matrix[ :, 1] - mean_freq)/sd_freq
 
     clf2.fit(features_matrix, lab_vec)
     
@@ -493,6 +525,9 @@ def logistic_regression(training_file, development_file, counts):
     drecall = get_recall(dev_pred, dev_vec)
     print("Logistic Regression Performance Statistics")
     test_predictions(dev_pred, dev_vec)
+    print("Training F-Score: " + str(tfscore))
+    print("Training Precision: " + str(tprecision))
+    print("Training Recall: " + str(trecall))
 
     training_performance = [tprecision, trecall, tfscore]
     development_performance = [dprecision, drecall, dfscore]
@@ -516,10 +551,11 @@ if __name__ == "__main__":
     ngram_counts_file = "ngram_counts.txt.gz"
     counts = load_ngram_counts(ngram_counts_file)
 
+    # freq_performance = word_frequency_threshold(training_file, development_file, counts)
+
     naive_bayes_performance = naive_bayes(training_file, development_file, counts)
     logistic_regression_performance = logistic_regression(training_file, development_file, counts)
 
-    freq_performance = word_frequency_threshold(training_file, development_file, counts)
-    print("Starting Plots")
-    precision_recall_plots(training_file, counts)
+    #print("Starting Plots")
+    #precision_recall_plots(training_file, counts)
 
