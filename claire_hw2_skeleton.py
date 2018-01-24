@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import sklearn
 import re
 from sklearn.naive_bayes import GaussianNB
+import syllables
 
 #### 1. Evaluation Metrics ####
 
@@ -87,7 +88,7 @@ def test_predictions(y_pred, y_true):
 #### 2. Complex Word Identification ####
 
 ## Loads in the words and labels of one of the datasets
-def load_file(data_file):
+def load_file_upper(data_file):
     words = []
     labels = []   
     with open(data_file, 'rt', encoding="utf8") as f:
@@ -96,6 +97,19 @@ def load_file(data_file):
             if i > 0:
                 line_split = line[:-1].split("\t")
                 words.append(line_split[0])
+                labels.append(int(line_split[1]))
+            i += 1
+    return words, labels
+
+def load_file(data_file):
+    words = []
+    labels = []   
+    with open(data_file, 'rt', encoding="utf8") as f:
+        i = 0
+        for line in f:
+            if i > 0:
+                line_split = line[:-1].split("\t")
+                words.append(line_split[0].lower())
                 labels.append(int(line_split[1]))
             i += 1
     return words, labels
@@ -233,8 +247,8 @@ def word_frequency_threshold(training_file, development_file, counts):
     best_f = 0 
     best_r = 0 
     best_p = 0
-    t_words, t_labels = load_file(training_file)
-    d_words, d_labels = load_file(development_file)
+    t_words, t_labels = load_file_upper(training_file)
+    d_words, d_labels = load_file_upper(development_file)
 
     i = 0
     for threshold in range(0, 60000000, 100000):
@@ -291,7 +305,7 @@ def norm(vec):
 ## Trains a Naive Bayes classifier using length and frequency features
 def naive_bayes(training_file, development_file, counts):
     ## YOUR CODE HERE
-    t_words, t_labels = load_file(training_file)
+    t_words, t_labels = load_file_upper(training_file)
     feat_mat = np.zeros((len(t_words), 2))
     labels_vec = np.zeros(len(t_words))
 
@@ -310,7 +324,7 @@ def naive_bayes(training_file, development_file, counts):
     clf = GaussianNB()
     clf.fit(feat_mat, labels_vec)
 
-    d_words, d_labels = load_file(development_file)
+    d_words, d_labels = load_file_upper(development_file)
     dev_mat = np.zeros((len(d_words), 2))
     # dev_vec = np.zeros(len(d_words))
 
@@ -365,21 +379,36 @@ def show_both():
 ## and writes the predicted labels to the text file 'test_labels.txt',
 ## with ONE LABEL PER LINE
 
-# def load_file(data_file):
-#     print ("INSIDE METHOD?")
-#     file = open(data_file)
-#     print (file)
-#     results = {}
-#     skip = True
-#     for line in file:
-#         if skip:
-#             skip = False 
-#             continue
-#         words = line.split("\t")
-#         # print (words[0] + " %s" %words[1])
-#         results[words[0]] = words[1]
-#     file.close()
-#     return results
+def sentence_length(f):
+    sen_len = dict()
+    i = 0
+    for line in f:
+        if i > 0:
+            line_split = line[:-1].split("\t")
+            word = line_split[0]
+            sen_len[word] = len(line_split[3].split(r"\s"))
+        i += 1
+    return sen_len
+
+def syllable_length(f):
+    syl_len = {}
+    for line in f:
+        if i > 0:
+            line_split = line[:-1].split("\t")
+            word = line_split[0]
+            syl_len[word] = syllables.count_syllables(word)
+
+
+
+def classifier(file_name):
+    file = open(file_name, 'rt', encoding"utf8")
+
+
+    sen_len = sentence_length(file)
+    syl_len = 
+
+    file.close()
+
 
 if __name__ == "__main__":
     training_file = "data/complex_words_training.txt"
