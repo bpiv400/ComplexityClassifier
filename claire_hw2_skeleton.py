@@ -399,13 +399,11 @@ def syllable_length(f):
             syl_len[word] = syllables.count_syllables(word)
 
 
-
 def classifier(file_name):
-    file = open(file_name, 'rt', encoding"utf8")
-
+    file = open(file_name, 'rt', encoding = "utf8")
 
     sen_len = sentence_length(file)
-    syl_len = 
+    syl_len = syllabe_length(file)
 
     file.close()
 
