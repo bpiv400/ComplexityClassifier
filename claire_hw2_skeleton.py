@@ -20,7 +20,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier
 from nltk.corpus import wordnet as wn
-
+import nltk
+nltk.download('wordnet')
 
 import syllables
 
@@ -444,9 +445,10 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
 
     dc_list = load_words(dc_file)
     awl_list = load_words(awl_file)
+    top1000_list = load_words(top1000_file)
 
     #put number of features here
-    num_features = 7
+    num_features = 8
 
     words, labels = load_file(training_file)
     training_dic = dict(zip(words, labels))
@@ -478,6 +480,8 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
         features_matrix[i, 5] = in_list(word, dc_list)
         # 6 index feature is indicator for presence in AWL list
         features_matrix[i, 6] = in_list(word, awl_list)
+        # 7 index feature is indicator for presence in top 100 most common words list
+        features_matrix[i, 7] = in_list(word, top1000_list)
         i += 1
     
     mean_list = list()
@@ -518,6 +522,8 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
         dev_matrix[i, 5] = in_list(word, dc_list)
         # 6 index feature is indicator for presence in AWL list
         dev_matrix[i, 6] = in_list(word, awl_list)
+        # 7 index feature is indicator for presence in top 100 most common words list
+        dev_matrix[i, 7] = in_list(word, top1000_list)
         i += 1
     curr_classifier.fit(features_matrix_stand, lab_vec)
     
@@ -530,8 +536,8 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
 
     print("Training Classifier Performance Statistics")
     test_predictions(train_predict, lab_vec)
-    print(mean_list)
-    print(std_list)
+    # print(mean_list)
+    # print(std_list)
 
     if(train_dev): 
         full_matrix = np.concatenate((features_matrix, dev_matrix), axis = 0)
@@ -543,8 +549,8 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
             std_list.append(np.std(full_matrix[:, i]))
         full_matrix = standardize(full_matrix, mean_list, std_list)
         full_classifier.fit(full_matrix, full_pred)
-        print(mean_list)
-        print(std_list)
+        # print(mean_list)
+        # print(std_list)
 
     test_words = load_test_file(test_file)
     file = open(test_file, 'rt', encoding="utf8")
@@ -574,6 +580,8 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
         test_matrix[i, 5] = in_list(word, dc_list)
         # 6 index feature is indicator for presence in AWL list
         test_matrix[i, 6] = in_list(word, awl_list)
+        # 7 index feature is indicator for presence in top 100 most common words list
+        test_matrix[i, 7] = in_list(word, top1000_list)
         i += 1
 
     test_matrix = standardize(test_matrix, mean_list, std_list)
@@ -587,6 +595,7 @@ if __name__ == "__main__":
     test_file = "data/complex_words_test_unlabeled.txt"
     awl_file = "data/AWL.txt"
     dc_file = "data/DC_list.txt"
+    top1000_file = "data/top1000.txt"
 
     train_data = load_file(training_file)
     
@@ -598,5 +607,4 @@ if __name__ == "__main__":
     with open("test_labels.txt", "w", encoding='utf-8') as file:
         for item in test_pred:
             file.write("{}\n".format(str(int(item))))
-
 
