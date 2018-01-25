@@ -435,8 +435,8 @@ def standardize(matrix, mean_list, std_list):
     return new_matrix
 
 def classifier(training_file, development_file, test_file, awl_file, dc_file, counts, train_dev):
-    curr_classifier = RandomForestClassifier()
-    full_classifier =  RandomForestClassifier()
+    curr_classifier = SVC()
+    full_classifier =  SVC()
     file = open(training_file, 'rt', encoding="utf-8")
     # return dictionaries
     sen_len = sentence_length(file, False)
@@ -475,9 +475,9 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
         # 3 index feature is wordnet synsets
         features_matrix[i, 3] = wordnet_sens(word)
         # 4 index feature is sentence length
-        features_matrix[i, 4] = sen_len[word]
+        # features_matrix[i, 4] = sen_len[word]
         # 5 index feature is indicator for presence in DC list
-        features_matrix[i, 5] = in_list(word, dc_list)
+        features_matrix[i, 4] = in_list(word, dc_list)
         # 6 index feature is indicator for presence in AWL list
         features_matrix[i, 6] = in_list(word, awl_list)
         # 7 index feature is indicator for presence in top 100 most common words list
@@ -502,7 +502,9 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
 
     file.close()
     i = 0
+    word_vec = list()
     for word in development_dic.keys():
+        word_vec.append(word)
         # 0 index feature is word length
         dev_matrix[i, 0] = len(word)
         # 1 index feature is word count
@@ -517,9 +519,9 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
         # 3 index feature is wordnet synsets
         dev_matrix[i, 3] = wordnet_sens(word)
         # 4 index feature is sentence length
-        dev_matrix[i, 4] = sen_len[word]
+        # dev_matrix[i, 4] = sen_len[word]
         # 5 index feature is indicator for presence in DC list
-        dev_matrix[i, 5] = in_list(word, dc_list)
+        dev_matrix[i, 4] = in_list(word, dc_list)
         # 6 index feature is indicator for presence in AWL list
         dev_matrix[i, 6] = in_list(word, awl_list)
         # 7 index feature is indicator for presence in top 100 most common words list
@@ -533,6 +535,10 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
     dev_predict = curr_classifier.predict(dev_matrix_stand)
     print("Development Classifier Performance Statistics")
     test_predictions(dev_predict, dev_vec)
+
+    for i in range(len(word_vec)):
+        if dev_predict[i] != dev_vec[i]
+        print("Word: " + word_vec[i] + " Pred: " + str(dev_predict[i]) + "True: " + str(dev_vec[i]))
 
     print("Training Classifier Performance Statistics")
     test_predictions(train_predict, lab_vec)
@@ -557,7 +563,7 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
     # return dictionaries
     sen_len = sentence_length(file, True)
 
-    file.close()
+    file.close()        
 
     test_matrix = np.zeros((len(test_words), num_features))
     i=0
@@ -575,9 +581,9 @@ def classifier(training_file, development_file, test_file, awl_file, dc_file, co
         # 3 index feature is wordnet synsets
         test_matrix[i, 3] = wordnet_sens(word)
         # 4 index feature is sentence length
-        test_matrix[i, 4] = sen_len[word]
+        # test_matrix[i, 3] = sen_len[word]
         # 5 index feature is indicator for presence in DC list
-        test_matrix[i, 5] = in_list(word, dc_list)
+        test_matrix[i, 4] = in_list(word, dc_list)
         # 6 index feature is indicator for presence in AWL list
         test_matrix[i, 6] = in_list(word, awl_list)
         # 7 index feature is indicator for presence in top 100 most common words list
