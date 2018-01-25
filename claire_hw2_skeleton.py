@@ -16,14 +16,16 @@ import matplotlib.pyplot as plt
 import sklearn
 import re
 from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from nltk.corpus import wordnet as wn
+
+
 import syllables
 
 #### 1. Evaluation Metrics ####
 
-## Input: y_pred, a list of length n with the predicted labels,
-## y_true, a list of length n with the true labels
-y_prediction = [1, 1, 1, 1, 1, 0, 0, 0, 0]
-y_truth = [1, 1, 0, 0, 0, 1, 1, 0, 0]
 
 def get_true_comp(y_pred, y_true):
     val = 0
@@ -206,13 +208,12 @@ def word_length_threshold(training_file, development_file):
     # print (development_performance)
     return training_performance, development_performance
 
-word_length_threshold("complex_words_training.txt", "complex_words_development.txt")
 ### 2.3: Word frequency thresholding
 
 ## Loads Google NGram counts
 def load_ngram_counts(ngram_counts_file): 
    counts = defaultdict(int) 
-   with gzip.open(ngram_counts_file, 'rt') as f: 
+   with gzip.open(ngram_counts_file, 'rt', encoding='utf-8') as f: 
        for line in f:
            token, count = line.strip().split('\t') 
            if token[0].islower(): 
@@ -379,38 +380,73 @@ def show_both():
 ## and writes the predicted labels to the text file 'test_labels.txt',
 ## with ONE LABEL PER LINE
 
-def sentence_length(f):
+def sentence_length(f, test):
     sen_len = dict()
     i = 0
     for line in f:
         if i > 0:
             line_split = line[:-1].split("\t")
-            word = line_split[0]
-            sen_len[word] = len(line_split[3].split(r"\s"))
+            word = line_split[0].lower()
+            if test:
+                sen_len[word] = len(line_split[1].split(" "))
+            else: 
+                sen_len[word] = len(line_split[3].split(" "))
         i += 1
     return sen_len
-
-def syllable_length(f):
-    syl_len = {}
-    for line in f:
-        if i > 0:
-            line_split = line[:-1].split("\t")
-            word = line_split[0]
-            syl_len[word] = syllables.count_syllables(word)
 
 def wordnet_sens(word):
     num_sens = len(wn.synsets(word))
     return num_sens
 
-def classifier(training_file, development_file, counts):
-    file = open(file_name, 'rt', encoding"utf8")
+def load_test_file(file):
+    words = list()
+    with open(file, 'rt', encoding='utf-8') as f:
+        i = 0
+        for line in f:
+            if i > 0:
+                line_split = line[:-1].split("\t")
+                words.append(line_split[0].lower())
+            i += 1
+    return words 
+
+def load_words(file):
+    words = list()
+    with open(file, 'rt') as f: 
+        for line in f:
+            if len(line) > 0:
+                words.append(line.strip())
+    return words
+
+def in_list(word, list):
+    if word in list:
+        return 1
+    else:
+        word = re.sub("-", "", word)
+        if word in list:
+            return 1
+        else: 
+            return 0
+
+def standardize(matrix, mean_list, std_list):
+    new_matrix = np.copy(matrix)
+    for i in range(len(new_matrix[1,:])):
+        new_matrix[:, i] = (new_matrix[:, i] - mean_list[i])/std_list[i]
+    return new_matrix
+
+def classifier(training_file, development_file, test_file, awl_file, dc_file, counts, train_dev):
+    curr_classifier = RandomForestClassifier()
+    full_classifier =  RandomForestClassifier()
+    file = open(training_file, 'rt', encoding="utf-8")
     # return dictionaries
-    sen_len = sentence_length(file)
-    syl_len = syllable_lenth(file)
+    sen_len = sentence_length(file, False)
 
     file.close()
+
+    dc_list = load_words(dc_file)
+    awl_list = load_words(awl_file)
+
     #put number of features here
-    num_features = 4
+    num_features = 7
 
     words, labels = load_file(training_file)
     training_dic = dict(zip(words, labels))
@@ -422,6 +458,7 @@ def classifier(training_file, development_file, counts):
     lab_vec = np.zeros(len(training_dic))
     i = 0
     for word in training_dic.keys():
+        lab_vec[i] = training_dic[word]
         # 0 index feature is word length
         features_matrix[i, 0] = len(word)
         # 1 index feature is word count
@@ -431,40 +468,135 @@ def classifier(training_file, development_file, counts):
             count = counts[fixed_word]
         features_matrix[i, 1] = count
         lab_vec[i] = training_dic[word]
-        i += 1
         # 2 index feature is word syllables
-        features_matrix[i, 2] = syl_len[word]
+        features_matrix[i, 2] = syllables.count_syllables(word)
         # 3 index feature is wordnet synsets
         features_matrix[i, 3] = wordnet_sens(word)
         # 4 index feature is sentence length
         features_matrix[i, 4] = sen_len[word]
+        # 5 index feature is indicator for presence in DC list
+        features_matrix[i, 5] = in_list(word, dc_list)
+        # 6 index feature is indicator for presence in AWL list
+        features_matrix[i, 6] = in_list(word, awl_list)
+        i += 1
+    
+    mean_list = list()
+    std_list = list()
+    for i in range(len(features_matrix[1,:])):
+        mean_list.append(np.mean(features_matrix[:, i]))
+        std_list.append(np.std(features_matrix[:, i]))
 
-    mean_len = np.mean(features_matrix[ :, 0])
-    sd_len = np.std(features_matrix[:, 0])
+    features_matrix_stand = standardize(features_matrix, mean_list, std_list)
 
-    mean_freq = np.mean(features_matrix[ :, 1])
-    sd_freq = np.std(features_matrix[:, 1])
 
-    features_matrix[ :, 0] = norm(features_matrix[ :, 0])
-    features_matrix[ :, 1] = norm(features_matrix[ :, 1])
-
-    dev_matrix = np.zeros((len(development_dic), 2))
+    dev_matrix = np.zeros((len(development_dic), num_features))
     dev_vec = np.zeros(len(development_dic))
 
+    file = open(development_file, 'rt', encoding="utf8")
+    # return dictionaries
+    sen_len = sentence_length(file, False)
+
+    file.close()
     i = 0
+    for word in development_dic.keys():
+        # 0 index feature is word length
+        dev_matrix[i, 0] = len(word)
+        # 1 index feature is word count
+        count = counts[word]
+        if count == 0:
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
+        dev_matrix[i, 1] = count
+        dev_vec[i] = development_dic[word]
+        # 2 index feature is word syllables
+        dev_matrix[i, 2] = syllables.count_syllables(word)
+        # 3 index feature is wordnet synsets
+        dev_matrix[i, 3] = wordnet_sens(word)
+        # 4 index feature is sentence length
+        dev_matrix[i, 4] = sen_len[word]
+        # 5 index feature is indicator for presence in DC list
+        dev_matrix[i, 5] = in_list(word, dc_list)
+        # 6 index feature is indicator for presence in AWL list
+        dev_matrix[i, 6] = in_list(word, awl_list)
+        i += 1
+    curr_classifier.fit(features_matrix_stand, lab_vec)
+    
+    dev_matrix_stand = standardize(dev_matrix, mean_list, std_list)
+    
+    train_predict = curr_classifier.predict(features_matrix_stand)
+    dev_predict = curr_classifier.predict(dev_matrix_stand)
+    print("Development Classifier Performance Statistics")
+    test_predictions(dev_predict, dev_vec)
+
+    print("Training Classifier Performance Statistics")
+    test_predictions(train_predict, lab_vec)
+    print(mean_list)
+    print(std_list)
+
+    if(train_dev): 
+        full_matrix = np.concatenate((features_matrix, dev_matrix), axis = 0)
+        full_pred = np.concatenate((lab_vec, dev_vec))
+        mean_list = list()
+        std_list = list()
+        for i in range(len(full_matrix[1,:])):
+            mean_list.append(np.mean(full_matrix[:, i]))
+            std_list.append(np.std(full_matrix[:, i]))
+        full_matrix = standardize(full_matrix, mean_list, std_list)
+        full_classifier.fit(full_matrix, full_pred)
+        print(mean_list)
+        print(std_list)
+
+    test_words = load_test_file(test_file)
+    file = open(test_file, 'rt', encoding="utf8")
+    # return dictionaries
+    sen_len = sentence_length(file, True)
+
+    file.close()
+
+    test_matrix = np.zeros((len(test_words), num_features))
+    i=0
+    for word in test_words:
+        # 0 index feature is word length
+        test_matrix[i, 0] = len(word)
+        # 1 index feature is word count
+        count = counts[word]
+        if count == 0:
+            fixed_word = re.sub(pattern="-", repl="", string = word)
+            count = counts[fixed_word]
+        test_matrix[i, 1] = count
+        # 2 index feature is word syllables
+        test_matrix[i, 2] = syllables.count_syllables(word)
+        # 3 index feature is wordnet synsets
+        test_matrix[i, 3] = wordnet_sens(word)
+        # 4 index feature is sentence length
+        test_matrix[i, 4] = sen_len[word]
+        # 5 index feature is indicator for presence in DC list
+        test_matrix[i, 5] = in_list(word, dc_list)
+        # 6 index feature is indicator for presence in AWL list
+        test_matrix[i, 6] = in_list(word, awl_list)
+        i += 1
+
+    test_matrix = standardize(test_matrix, mean_list, std_list)
+    test_predict = full_classifier.predict(test_matrix)
+    return test_predict 
 
 
 if __name__ == "__main__":
     training_file = "data/complex_words_training.txt"
     development_file = "data/complex_words_development.txt"
     test_file = "data/complex_words_test_unlabeled.txt"
+    awl_file = "data/AWL.txt"
+    dc_file = "data/DC_list.txt"
 
     train_data = load_file(training_file)
     
     ngram_counts_file = "ngram_counts.txt.gz"
     counts = load_ngram_counts(ngram_counts_file)
-    print ()
     # word_frequency_threshold("complex_words_training.txt", "complex_words_development.txt", counts)
-    naive_bayes("complex_words_training.txt", "complex_words_development.txt", counts)
+    # naive_bayes("complex_words_training.txt", "complex_words_development.txt", counts)
+    test_pred = classifier(training_file, development_file, test_file, awl_file, dc_file, counts, True)
+    with open("test_labels.txt", "w", encoding='utf-8') as file:
+        for item in test_pred:
+            file.write("{}\n".format(str(int(item))))
 
 

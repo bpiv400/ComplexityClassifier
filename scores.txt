@@ -1,0 +1,20 @@
+all features random forest 
+precision .726
+recall: .722
+f-score: .724
+
+all features naive bayes
+precision: .597
+recall: .943
+f-score: .719
+
+all features logistic regression
+precision: .715
+recall: .768
+f-score: .740
+
+support vector classifier
+precision: .697
+recall: .778
+f-score: .744
+
